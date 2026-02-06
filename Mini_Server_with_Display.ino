@@ -2,17 +2,16 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <Preferences.h> 
-#include <Wire.h>              // Added for I2C communication
-#include <Adafruit_GFX.h>      // Added for display graphics
-#include <Adafruit_SSD1306.h>  // Added for OLED driver
+#include <Wire.h>               
+#include <Adafruit_GFX.h>      
+#include <Adafruit_SSD1306.h>  
 
 // --- Display Settings ---
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define OLED_RESET    -1      // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C   // See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+#define OLED_RESET    -1      
+#define SCREEN_ADDRESS 0x3C   
 
-// Define the display object
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 Preferences preferences;
@@ -22,8 +21,12 @@ WebServer server(80);
 String ssid = "Al Amin Islam Ar";
 String password = "ALAMINASR60";
 
+// --- Sleep Timer Variables ---
+unsigned long startTime; 
+const unsigned long DISPLAY_TIMEOUT = 40000; // 60 seconds in milliseconds
+bool isDisplayOn = true;
+
 // --- Main Portfolio HTML (PROGMEM) ---
-// (Keeping your original HTML exactly as is)
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
@@ -167,7 +170,6 @@ const char index_html[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-// --- Admin Panel HTML ---
 const char admin_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -197,7 +199,6 @@ const char admin_html[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-// Function to serve the main portfolio
 void handleRoot() {
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
     server.send(200, "text/html", "");
@@ -206,47 +207,37 @@ void handleRoot() {
     server.client().stop();
 }
 
-// Function to serve the admin page
 void handleAdmin() {
     server.send_P(200, "text/html", admin_html);
 }
 
-// Function to save new credentials
 void handleSave() {
     if (server.hasArg("n_ssid") && server.hasArg("n_pass")) {
         String newSsid = server.arg("n_ssid");
         String newPass = server.arg("n_pass");
-
-        // Save to NVS storage
         preferences.begin("wifi-creds", false);
         preferences.putString("ssid", newSsid);
         preferences.putString("pass", newPass);
         preferences.end();
-
-        server.send(200, "text/html", "<h2>Settings Saved!</h2><p>ESP32 is restarting to connect to the new network...</p>");
+        server.send(200, "text/html", "<h2>Settings Saved!</h2><p>ESP32 is restarting...</p>");
         delay(3000);
         ESP.restart();
     }
 }
 
-// --- HELPER FUNCTION: Robotic Eye Animation ---
 void animateEyes(int loops) {
     for(int i=0; i<loops; i++) {
-        // Open Eyes (Rectangles for robotic look)
         display.clearDisplay();
-        display.fillRect(20, 15, 30, 30, SSD1306_WHITE); // Left Eye
-        display.fillRect(78, 15, 30, 30, SSD1306_WHITE); // Right Eye
+        display.fillRect(20, 15, 30, 30, SSD1306_WHITE); 
+        display.fillRect(78, 15, 30, 30, SSD1306_WHITE); 
         display.display();
         delay(800);
-
-        // Close Eyes (Blink)
         display.clearDisplay();
-        display.fillRect(20, 28, 30, 4, SSD1306_WHITE); // Left Blink
-        display.fillRect(78, 28, 30, 4, SSD1306_WHITE); // Right Blink
+        display.fillRect(20, 28, 30, 4, SSD1306_WHITE); 
+        display.fillRect(78, 28, 30, 4, SSD1306_WHITE); 
         display.display();
         delay(200);
     }
-    // Eyes Open one last time
     display.clearDisplay();
     display.fillRect(20, 15, 30, 30, SSD1306_WHITE); 
     display.fillRect(78, 15, 30, 30, SSD1306_WHITE); 
@@ -254,67 +245,49 @@ void animateEyes(int loops) {
     delay(500);
 }
 
-// --- HELPER FUNCTION: Typewriter Effect ---
 void typeWrite(String text, int x, int y, int size) {
     display.setTextSize(size);
     display.setCursor(x, y);
     for(int i=0; i < text.length(); i++) {
         display.print(text[i]);
         display.display();
-        delay(50); // Speed of typing
+        delay(50);
     }
 }
 
 void setup() {
     Serial.begin(115200);
 
-    // --- 1. Initialize Display ---
     Wire.begin(21, 22); 
-    
-    // Address 0x3C for 128x64
     if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
         Serial.println(F("SSD1306 allocation failed"));
         for(;;);
     }
     
+    display.ssd1306_command(SSD1306_DISPLAYON); // Ensure display is on at start
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE); 
     
-    // --- 2. STARTUP SEQUENCE ---
-    
-    // A. Robotic Eyes Animation
-    animateEyes(2); // Blink 2 times
+    animateEyes(2); 
     display.clearDisplay();
     delay(500);
 
-    // B. Typewriter Text Animation
-    // Shows "Hello Everyone!"
-    typeWrite("Hello", 10, 10, 2); // Size 2 (Larger)
+    typeWrite("Hello", 10, 10, 2); 
     typeWrite("Everyone!", 10, 35, 2);
     delay(1500);
     
     display.clearDisplay();
-
-    // Shows "This is Mini Server..."
-    typeWrite("This is Mini", 0, 0, 2);
+    typeWrite("Mini", 0, 0, 2);
     typeWrite("WEB Server", 0, 20, 2);
-    typeWrite("ProtoType", 0, 45, 1); // Size 1 (Smaller)
+    typeWrite("ProtoType", 0, 45, 1);
     delay(2000);
 
-    // --- End Startup Sequence ---
-
-    // Initialize Preferences
     preferences.begin("wifi-creds", true);
     ssid = preferences.getString("ssid", ssid); 
     password = preferences.getString("pass", password);
     preferences.end();
 
-    // Start Wi-Fi
     WiFi.begin(ssid.c_str(), password.c_str());
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-    
-    // Show Connecting Status on Screen
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0,0);
@@ -324,53 +297,63 @@ void setup() {
     int timeout = 0;
     while (WiFi.status() != WL_CONNECTED && timeout < 20) {
         delay(500);
-        Serial.print(".");
-        display.print("."); // Add dots to screen
+        display.print(".");
         display.display();
         timeout++;
     }
 
-    // Start mDNS 
     if (MDNS.begin("ashik")) {
         Serial.println("\nmDNS started: http://ashik.local");
     }
 
-    // Set up Web Server routes
     server.on("/", handleRoot);
     server.on("/admin", handleAdmin);
     server.on("/save", HTTP_POST, handleSave);
-    
     server.begin();
     MDNS.addService("http", "tcp", 80);
-    
-    Serial.print("Local IP: ");
-    Serial.println(WiFi.localIP());
 
-    // --- 3. Final Steady State Display ---
     display.clearDisplay();
-    
-    // Line 1: Server Status (Large)
+    display.setTextSize(2);
+    display.setCursor(0, 0);
+    display.println("WiFi Info");
+    display.drawLine(0, 18, 128, 18, SSD1306_WHITE);
+    display.setTextSize(1);
+    display.setCursor(0, 25);
+    display.print("SSID: ");
+    display.println(ssid); 
+    display.setCursor(0, 40);
+    display.print("PASS: ");
+    display.println(password); 
+    display.display(); 
+    delay(4000);
+
+    display.clearDisplay();
     display.setTextSize(2);
     display.setCursor(0, 0);
     display.println("Server ON");
-
-    // Line 2: Separator Line
     display.drawLine(0, 18, 128, 18, SSD1306_WHITE);
-
-    // Line 3: IP Address (Small)
     display.setTextSize(1);
     display.setCursor(0, 25);
     display.print("IP: ");
     display.println(WiFi.localIP());
-    
-    // Line 4: URL (Small)
     display.setCursor(0, 40);
     display.print("Visit: ");
     display.println("ashik.local");
-    
     display.display(); 
+
+    // Record the time when the setup finished
+    startTime = millis();
 }
 
 void loop() {
     server.handleClient();
+
+    // Check if 60 seconds have passed since setup ended
+    if (isDisplayOn && (millis() - startTime > DISPLAY_TIMEOUT)) {
+        display.clearDisplay();
+        display.display();
+        display.ssd1306_command(SSD1306_DISPLAYOFF); // Send OLED to low-power sleep
+        isDisplayOn = false;
+        Serial.println("Display entered sleep mode to save battery.");
+    }
 }
