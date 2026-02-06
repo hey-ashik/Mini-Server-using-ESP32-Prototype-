@@ -229,40 +229,83 @@ void handleSave() {
     }
 }
 
+// --- HELPER FUNCTION: Robotic Eye Animation ---
+void animateEyes(int loops) {
+    for(int i=0; i<loops; i++) {
+        // Open Eyes (Rectangles for robotic look)
+        display.clearDisplay();
+        display.fillRect(20, 15, 30, 30, SSD1306_WHITE); // Left Eye
+        display.fillRect(78, 15, 30, 30, SSD1306_WHITE); // Right Eye
+        display.display();
+        delay(800);
+
+        // Close Eyes (Blink)
+        display.clearDisplay();
+        display.fillRect(20, 28, 30, 4, SSD1306_WHITE); // Left Blink
+        display.fillRect(78, 28, 30, 4, SSD1306_WHITE); // Right Blink
+        display.display();
+        delay(200);
+    }
+    // Eyes Open one last time
+    display.clearDisplay();
+    display.fillRect(20, 15, 30, 30, SSD1306_WHITE); 
+    display.fillRect(78, 15, 30, 30, SSD1306_WHITE); 
+    display.display();
+    delay(500);
+}
+
+// --- HELPER FUNCTION: Typewriter Effect ---
+void typeWrite(String text, int x, int y, int size) {
+    display.setTextSize(size);
+    display.setCursor(x, y);
+    for(int i=0; i < text.length(); i++) {
+        display.print(text[i]);
+        display.display();
+        delay(50); // Speed of typing
+    }
+}
+
 void setup() {
     Serial.begin(115200);
 
     // --- 1. Initialize Display ---
-    Wire.begin(21, 22); // Start I2C on SDA=21, SCL=22
+    Wire.begin(21, 22); 
     
     // Address 0x3C for 128x64
     if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
         Serial.println(F("SSD1306 allocation failed"));
-        for(;;); // Don't proceed, loop forever
+        for(;;);
     }
     
     display.clearDisplay();
-    display.setTextSize(1);             
-    display.setTextColor(SSD1306_WHITE); // 'White' turns the pixel ON (shows green on green OLEDs)
+    display.setTextColor(SSD1306_WHITE); 
     
-    // --- 2. Startup Sequence ---
-    // Step A: Show "Hello"
-    display.setCursor(0, 0);
-    display.println("Hello");
-    display.display();
-    delay(2000); // Wait 2 seconds
+    // --- 2. STARTUP SEQUENCE ---
+    
+    // A. Robotic Eyes Animation
+    animateEyes(2); // Blink 2 times
+    display.clearDisplay();
+    delay(500);
 
-    // Step B: Show "this is Mini Server..."
-    display.println("this is Mini Server");
-    display.println("ProtoType");
-    display.display();
-    delay(2000); // Wait 2 seconds
+    // B. Typewriter Text Animation
+    // Shows "Hello Everyone!"
+    typeWrite("Hello", 10, 10, 2); // Size 2 (Larger)
+    typeWrite("Everyone!", 10, 35, 2);
+    delay(1500);
+    
+    display.clearDisplay();
+
+    // Shows "This is Mini Server..."
+    typeWrite("This is Mini", 0, 0, 2);
+    typeWrite("WEB Server", 0, 20, 2);
+    typeWrite("ProtoType", 0, 45, 1); // Size 1 (Smaller)
+    delay(2000);
 
     // --- End Startup Sequence ---
 
-    // Initialize Preferences and load saved Wi-Fi details
+    // Initialize Preferences
     preferences.begin("wifi-creds", true);
-    ssid = preferences.getString("ssid", ssid); // Use default if none saved
+    ssid = preferences.getString("ssid", ssid); 
     password = preferences.getString("pass", password);
     preferences.end();
 
@@ -270,11 +313,20 @@ void setup() {
     WiFi.begin(ssid.c_str(), password.c_str());
     Serial.print("Connecting to ");
     Serial.println(ssid);
+    
+    // Show Connecting Status on Screen
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0,0);
+    display.println("Connecting Wifi...");
+    display.display();
 
     int timeout = 0;
     while (WiFi.status() != WL_CONNECTED && timeout < 20) {
         delay(500);
         Serial.print(".");
+        display.print("."); // Add dots to screen
+        display.display();
         timeout++;
     }
 
@@ -295,20 +347,28 @@ void setup() {
     Serial.println(WiFi.localIP());
 
     // --- 3. Final Steady State Display ---
-    display.clearDisplay(); // Clear startup text
+    display.clearDisplay();
+    
+    // Line 1: Server Status (Large)
+    display.setTextSize(2);
     display.setCursor(0, 0);
-    display.setTextSize(1); 
-    
-    display.println("Server is on");
-    display.println(""); // Empty line for spacing
-    
-    display.print("Wifi IP: ");
+    display.println("Server ON");
+
+    // Line 2: Separator Line
+    display.drawLine(0, 18, 128, 18, SSD1306_WHITE);
+
+    // Line 3: IP Address (Small)
+    display.setTextSize(1);
+    display.setCursor(0, 25);
+    display.print("IP: ");
     display.println(WiFi.localIP());
     
-    display.print("Site : ");
+    // Line 4: URL (Small)
+    display.setCursor(0, 40);
+    display.print("Visit: ");
     display.println("ashik.local");
     
-    display.display(); // Show final text
+    display.display(); 
 }
 
 void loop() {
