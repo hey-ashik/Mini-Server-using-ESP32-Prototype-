@@ -23,11 +23,51 @@ String password = "ALAMINASR60";
 
 // --- Sleep Timer Variables ---
 unsigned long startTime; 
-const unsigned long DISPLAY_TIMEOUT = 40000; // 60 seconds in milliseconds
+const unsigned long DISPLAY_TIMEOUT = 40000; 
 bool isDisplayOn = true;
 
-// --- Main Portfolio HTML (PROGMEM) ---
+// --- PAGE 1: LINKS PAGE (ROOT) ---
 const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ashikul Islam | Links</title>
+    <style>
+        :root { --bg: #ffffff; --text: #000000; --gray: #666; --border: #eee; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        #landing-screen { width: 100%; max-width: 500px; display: flex; flex-direction: column; }
+        .header-pill { border: 2px solid #000; border-radius: 50px; padding: 30px 10px; text-align: center; margin-bottom: 40px; }
+        .header-pill h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; }
+        .mid-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 0 10px; }
+        .view-more-btn { border: 2px solid #000; border-radius: 30px; padding: 10px 25px; text-decoration: none; color: #000; font-weight: 700; font-size: 1.1rem; }
+        .social-label { font-size: 1.4rem; font-weight: 700; font-family: serif; font-style: italic; }
+        .link-pill { border: 2px solid #000; border-radius: 50px; padding: 18px 30px; margin-bottom: 15px; text-decoration: none; color: #000; font-size: 1.6rem; font-weight: 800; display: block; transition: 0.2s; }
+        .link-pill:active { background: #000; color: #fff; }
+        .footer-pill { border: 2px solid #000; border-radius: 30px; padding: 10px; text-align: center; margin-top: 30px; font-size: 0.9rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div id="landing-screen">
+        <div class="header-pill"><h1>Ashikul Islam</h1></div>
+        <div class="mid-row">
+            <a href="/portfolio" class="view-more-btn">View More</a>
+            <span class="social-label">Social Link</span>
+        </div>
+        <a href="https://wa.me/01792250709" class="link-pill">WhatsApp</a>
+        <a href="#" class="link-pill">FaceBook</a>
+        <a href="https://linkedin.com/in/ashikulislamm" class="link-pill">LinkedIn</a>
+        <a href="tel:01792250709" class="link-pill">Phone No</a>
+        <div class="footer-pill">Powered By Mini Web Host</div>
+    </div>
+</body>
+</html>
+)rawliteral";
+
+// --- PAGE 2: FULL PORTFOLIO PAGE ---
+const char portfolio_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -199,32 +239,23 @@ const char admin_html[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-void handleRoot() {
-    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    server.send(200, "text/html", "");
-    server.sendContent(index_html);
-    server.sendContent("");
-    server.client().stop();
-}
 
-void handleAdmin() {
-    server.send_P(200, "text/html", admin_html);
-}
+void handleRoot() { server.send_P(200, "text/html", index_html); }
+void handlePortfolio() { server.send_P(200, "text/html", portfolio_html); }
+void handleAdmin() { server.send_P(200, "text/html", admin_html); }
 
 void handleSave() {
     if (server.hasArg("n_ssid") && server.hasArg("n_pass")) {
-        String newSsid = server.arg("n_ssid");
-        String newPass = server.arg("n_pass");
         preferences.begin("wifi-creds", false);
-        preferences.putString("ssid", newSsid);
-        preferences.putString("pass", newPass);
+        preferences.putString("ssid", server.arg("n_ssid"));
+        preferences.putString("pass", server.arg("n_pass"));
         preferences.end();
-        server.send(200, "text/html", "<h2>Settings Saved!</h2><p>ESP32 is restarting...</p>");
-        delay(3000);
-        ESP.restart();
+        server.send(200, "text/html", "<h2>Saved! Restarting...</h2>");
+        delay(2000); ESP.restart();
     }
 }
 
+// OLED animation and Setup functions kept as per your code
 void animateEyes(int loops) {
     for(int i=0; i<loops; i++) {
         display.clearDisplay();
@@ -244,7 +275,6 @@ void animateEyes(int loops) {
     display.display();
     delay(500);
 }
-
 void typeWrite(String text, int x, int y, int size) {
     display.setTextSize(size);
     display.setCursor(x, y);
@@ -254,7 +284,6 @@ void typeWrite(String text, int x, int y, int size) {
         delay(50);
     }
 }
-
 void setup() {
     Serial.begin(115200);
 
@@ -308,6 +337,7 @@ void setup() {
 
     server.on("/", handleRoot);
     server.on("/admin", handleAdmin);
+    server.on("/portfolio", handlePortfolio);
     server.on("/save", HTTP_POST, handleSave);
     server.begin();
     MDNS.addService("http", "tcp", 80);
